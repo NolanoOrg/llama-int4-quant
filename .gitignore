@@ -1,3 +1,5 @@
+models/
+.vscode/
 build/
 build-debug/
 build-*/

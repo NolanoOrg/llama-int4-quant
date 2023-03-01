@@ -36,7 +36,9 @@ def bytes_to_unicode():
     To avoid that, we want lookup tables between utf-8 bytes and unicode strings.
     And avoids mapping to whitespace/control characters the bpe code barfs on.
     """
-    bs = list(range(ord("!"), ord("~")+1))+list(range(ord("¡"), ord("¬")+1))+list(range(ord("®"), ord("ÿ")+1))
+    bs = list(range(ord("!"), ord("~")+1)) + \
+         list(range(ord("¡"), ord("¬")+1)) + \
+         list(range(ord("®"), ord("ÿ")+1))
     cs = bs[:]
     n = 0
     for b in range(2**8):
@@ -111,10 +113,10 @@ for name in list_vars.keys():
         print("  Skipping variable: " + name)
         continue
 
-    n_dims = len(data.shape);
+    n_dims = len(data.shape)
 
     # ftype == 0 -> float32, ftype == 1 -> float16
-    ftype = 0;
+    ftype = 0
     if use_f16:
         if name[-7:] == ".weight" and n_dims == 2:
             print("  Converting to float16")
@@ -144,7 +146,7 @@ for name in list_vars.keys():
     fout.write(struct.pack("iii", n_dims, len(str), ftype))
     for i in range(n_dims):
         fout.write(struct.pack("i", data.shape[n_dims - 1 - i]))
-    fout.write(str);
+    fout.write(str)
 
     # data
     data.tofile(fout)
