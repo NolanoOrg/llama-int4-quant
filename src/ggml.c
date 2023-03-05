@@ -1104,7 +1104,7 @@ inline static float ggml_sigmoid_f32(float x) {
 }
 
 inline static float ggml_silu_f32(float x) {
-    return x * sigmoid(x);
+    return x * ggml_sigmoid_f32(x);
 }
 
 inline static void ggml_vec_gelu_f16(const int n, ggml_fp16_t * y, const ggml_fp16_t * x) {

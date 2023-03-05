@@ -253,36 +253,36 @@ enum ggml_op {
 
 // n-dimensional tensor
 struct ggml_tensor {
-    enum ggml_type type;
+    enum ggml_type type; // 4 bytes
 
-    int    n_dims;
-    int    ne[GGML_MAX_DIMS]; // number of elements
-    size_t nb[GGML_MAX_DIMS]; // stride in bytes:
+    int    n_dims; // 4 bytes
+    int    ne[GGML_MAX_DIMS]; // number of elements // 16 bytes (4 * 4 bytes)
+    size_t nb[GGML_MAX_DIMS]; // stride in bytes: // 32 bytes (4 * 8 bytes)
                               // nb[0] = sizeof(type)
                               // nb[1] = nb[0]   * ne[0] + padding
                               // nb[i] = nb[i-1] * ne[i-1]
 
     // compute data
-    enum ggml_op op;
+    enum ggml_op op; // 4 bytes
 
-    bool is_param;
+    bool is_param; // 1 byte
 
-    struct ggml_tensor * grad;
-    struct ggml_tensor * src0;
-    struct ggml_tensor * src1;
-    struct ggml_tensor * opt[GGML_MAX_OPT];
+    struct ggml_tensor * grad; // 8 bytes
+    struct ggml_tensor * src0; // 8 bytes
+    struct ggml_tensor * src1; // 8 bytes
+    struct ggml_tensor * opt[GGML_MAX_OPT]; // 32 bytes (4 * 8 bytes)
 
     // thread scheduling
-    int n_tasks;
+    int n_tasks; // 4 bytes
 
     // performance
-    int     perf_runs;
-    int64_t perf_cycles;
-    int64_t perf_time_us;
+    int     perf_runs; // 4 bytes
+    int64_t perf_cycles; // 8 bytes
+    int64_t perf_time_us; // 8 bytes
 
-    void * data;
-    char padding[8];
-};
+    void * data; // 8 bytes
+    char padding[8]; // 8 bytes
+}; // total: 4 + 4 + 16 + 32 + 4 + 1 + 8 + 8 + 8 + 32 + 4 + 8 + 8 + 8 + 8 = 153 bytes
 
 // computation graph
 struct ggml_cgraph {
