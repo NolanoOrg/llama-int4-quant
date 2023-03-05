@@ -669,7 +669,7 @@ int main(int argc, char ** argv) {
     // determine the required inference memory per token:
     size_t mem_per_token = 0;
     llama_eval(model, params.n_threads, 0, { 0, 1, 2, 3 }, logits, mem_per_token);
-
+    int iiii = 0;
     for (int i = embd.size(); i < embd_inp.size() + params.n_predict; i++) {
         // predict
         if (embd.size() > 0) {
@@ -679,13 +679,13 @@ int main(int argc, char ** argv) {
                 printf("Failed to predict\n");
                 return 1;
             }
-            // printf("logits: ");
-            // for (int i = 0; i < logits.size(); i++) {
-            //     printf("%f ", logits[i]);
-            //     if (i == 10) {
-            //         break;
-            //     }
-            // }
+            printf("%d logits: ", iiii++);
+            for (int i = 0; i < 5; i++) {
+                printf("%.3f ", logits[i]);
+                if (i == 10) {
+                    break;
+                }
+            }
             // printf("\n");
             t_predict_us += ggml_time_us() - t_start_us;
         }
@@ -717,6 +717,7 @@ int main(int argc, char ** argv) {
                         id = i;
                     }
                 }
+                printf("max: %.3f, id: %d \n", max_value, id);
                 // id = gpt_sample_top_k_top_p(vocab, logits.data() + (logits.size() - n_vocab), top_k, top_p, temp, rng);
 
                 t_sample_us += ggml_time_us() - t_start_sample_us;

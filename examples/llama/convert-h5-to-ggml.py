@@ -72,7 +72,7 @@ if len(sys.argv) > 2:
     use_f16 = False
     fname_out = sys.argv[1] + "llama-f32.bin"
 
-model = torch.load(dir_model + 'small.pth') # "/no_layers.pth")
+model = torch.load(dir_model + 'consolidated.00.pth') # "/no_layers.pth")
 #print (model)
 
 list_vars = model#.state_dict()
