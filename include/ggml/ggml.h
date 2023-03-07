@@ -198,6 +198,8 @@ struct ggml_object;
 struct ggml_context;
 
 enum ggml_type {
+    GGML_TYPE_Q4_0,
+    GGML_TYPE_Q4_1,
     GGML_TYPE_I8,
     GGML_TYPE_I16,
     GGML_TYPE_I32,
@@ -328,7 +330,10 @@ void ggml_print_objects(const struct ggml_context * ctx);
 int    ggml_nelements(const struct ggml_tensor * tensor);
 size_t ggml_nbytes   (const struct ggml_tensor * tensor);
 
-size_t ggml_type_size   (enum ggml_type type);
+int    ggml_blck_size (enum ggml_type type);
+size_t ggml_type_size (enum ggml_type type); // size in bytes for all elements in a block
+float  ggml_type_sizef(enum ggml_type type); // ggml_type_size()/ggml_blck_size() as float
+
 size_t ggml_element_size(const struct ggml_tensor * tensor);
 
 struct ggml_context * ggml_init(struct ggml_init_params params);
