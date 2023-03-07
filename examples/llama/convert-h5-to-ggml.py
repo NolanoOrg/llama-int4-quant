@@ -49,8 +49,10 @@ def bytes_to_unicode():
     cs = [chr(n) for n in cs]
     return dict(zip(bs, cs))
 
-if len(sys.argv) < 2:
+if len(sys.argv) < 3:
     print("Usage: convert-h5-to-ggml.py dir-model [use-f32]\n")
+    print("  ftype == 0 -> float32")
+    print("  ftype == 1 -> float16")
     sys.exit(1)
 
 # output in the same directory as the model
@@ -67,10 +69,15 @@ with open(dir_model + "/config.json", "r") as f:
     hparams = json.load(f)
 
 # use 16-bit or 32-bit floats
-use_f16 = True
+ftype_str = ["f32", "f16"]
+
+ftype = 1
 if len(sys.argv) > 2:
-    use_f16 = False
-    fname_out = sys.argv[1] + "llama-f32.bin"
+    ftype = int(sys.argv[2])
+    if ftype < 0 or ftype > 1:
+        print("Invalid ftype: " + str(ftype))
+        sys.exit(1)
+    fname_out = sys.argv[1] + "llama-f32.bin" + ftype_str[ftype] + ".bin"
 
 model = torch.load(dir_model + 'consolidated.00.pth') # "/no_layers.pth")
 #print (model)
@@ -88,7 +95,7 @@ fout.write(struct.pack("i", hparams["n_hddn"]))
 fout.write(struct.pack("i", hparams["n_head"]))
 fout.write(struct.pack("i", hparams["n_layer"]))# 1))
 fout.write(struct.pack("i", hparams["rotary_dim"]))
-fout.write(struct.pack("i", use_f16))
+fout.write(struct.pack("i", ftype))
 
 # byte_encoder = bytes_to_unicode()
 # byte_decoder = {v:k for k, v in byte_encoder.items()}
@@ -122,36 +129,41 @@ for name in list_vars.keys():
     n_dims = len(data.shape)
 
     # ftype == 0 -> float32, ftype == 1 -> float16
-    ftype = 0
-    if use_f16:
+    ftype_cur = 0
+    if ftype != 0:
         if name[-7:] == ".weight" and n_dims == 2:
             print("  Converting to float16")
             data = data.astype(np.float16)
-            ftype = 1
+            ftype_cur = 1
         else:
             print("  Converting to float32")
             data = data.astype(np.float32)
-            ftype = 0
+            ftype_cur = 0
+    else:
+        if data.dtype != np.float32:
+            print("  Converting to float32")
+            data = data.astype(np.float32)
+            ftype_cur = 0
 
-    # for efficiency - transpose these matrices:
+    # for efficiency - transpose these matrices: --- no longer transping is efficient with GGML.
     #  "layers.*.feed_forward.w1.weight
     #  "layers.*.feed_forward.w3.weight
     #  "layers.*.attention.wq.weight
     #  "layers.*.attention.wk.weight"
     #  "layers.*.attention.wv.weight"
     #  "layers.*.attention.wo.weight"
-    if name.endswith(".feed_forward.w1.weight") or \
-       name.endswith(".feed_forward.w3.weight") or \
-       name.endswith(".attention.wo.weight") or \
-       name.endswith(".attention.wq.weight") or \
-       name.endswith(".attention.wk.weight") or \
-       name.endswith(".attention.wv.weight"):
-        print("  Transposing")
-        data = data.transpose()
+    # if name.endswith(".feed_forward.w1.weight") or \
+    #    name.endswith(".feed_forward.w3.weight") or \
+    #    name.endswith(".attention.wo.weight") or \
+    #    name.endswith(".attention.wq.weight") or \
+    #    name.endswith(".attention.wk.weight") or \
+    #    name.endswith(".attention.wv.weight"):
+    #     print("  Transposing")
+    #     data = data.transpose()
 
     # header
     str = name.encode('utf-8')
-    fout.write(struct.pack("iii", n_dims, len(str), ftype))
+    fout.write(struct.pack("iii", n_dims, len(str), ftype_cur))
     for i in range(n_dims):
         fout.write(struct.pack("i", data.shape[n_dims - 1 - i]))
     fout.write(str)

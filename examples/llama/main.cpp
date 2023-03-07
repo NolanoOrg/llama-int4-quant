@@ -131,9 +131,23 @@ bool llama_model_load(const std::string & fname, llama_model & model, gpt_vocab 
     //     }
     // }
 
-    // for the big tensors, we have the option to store the data in 16-bit floats
+    // for the big tensors, we have the option to store the data in 16-bit floats or quantized
     // in order to save memory and also to speed up the computation
-    const ggml_type wtype = model.hparams.f16 ? GGML_TYPE_F16 : GGML_TYPE_F32;
+    ggml_type wtype = GGML_TYPE_COUNT;
+    switch (model.hparams.f16) {
+        case 0: wtype = GGML_TYPE_F32; break;
+        case 1: wtype = GGML_TYPE_F16; break;
+        case 2: wtype = GGML_TYPE_Q4_0; break;
+        case 3: wtype = GGML_TYPE_Q4_1; break;
+        default:
+            {
+                fprintf(stderr, "%s: invalid model file '%s' (bad f16 %d)\n",
+                        __func__, fname.c_str(), model.hparams.f16);
+                return false;
+            }
+    }
+
+    const ggml_type wtype2 = GGML_TYPE_F32;
 
     auto & ctx = model.ctx;
 
@@ -148,43 +162,43 @@ bool llama_model_load(const std::string & fname, llama_model & model, gpt_vocab 
         const int n_ctx   = hparams.n_ctx;
         const int n_vocab = hparams.n_vocab;
 
-        ctx_size += n_embd * n_vocab * ggml_type_size(wtype); // wte
+        ctx_size += n_embd * n_vocab * ggml_type_sizef(GGML_TYPE_F16); // wte
 
         printf("%s: ggml ctx size embedding = %6.2f MB\n", __func__, ctx_size/(1024.0*1024.0));
         // for each layer
         {
-            ctx_size += n_layer * (n_embd * ggml_type_size(GGML_TYPE_F32)); // attention_norm
+            ctx_size += n_layer * (n_embd * ggml_type_sizef(GGML_TYPE_F32)); // attention_norm
 
             printf("%s: ggml ctx size attention_norm = %6.2f MB\n", __func__, ctx_size/(1024.0*1024.0));
 
-            ctx_size += n_layer * (n_embd * n_embd * ggml_type_size(wtype)); // c_attn_q_proj_w
-            ctx_size += n_layer * (n_embd * n_embd * ggml_type_size(wtype)); // c_attn_k_proj_w
-            ctx_size += n_layer * (n_embd * n_embd * ggml_type_size(wtype)); // c_attn_v_proj_w
+            ctx_size += n_layer * (n_embd * n_embd * ggml_type_sizef(wtype)); // c_attn_q_proj_w
+            ctx_size += n_layer * (n_embd * n_embd * ggml_type_sizef(wtype)); // c_attn_k_proj_w
+            ctx_size += n_layer * (n_embd * n_embd * ggml_type_sizef(wtype)); // c_attn_v_proj_w
 
-            ctx_size += n_layer * (n_embd * n_embd * ggml_type_size(wtype)); // c_attn_out_proj_w
+            ctx_size += n_layer * (n_embd * n_embd * ggml_type_sizef(wtype)); // c_attn_out_proj_w
 
             printf("%s: ggml ctx size c_attn_v_proj_w = %6.2f MB\n", __func__, ctx_size/(1024.0*1024.0));
 
-            ctx_size += n_layer * (n_embd * ggml_type_size(GGML_TYPE_F32)); // c_ffn_norm
+            ctx_size += n_layer * (n_embd * ggml_type_sizef(GGML_TYPE_F32)); // c_ffn_norm
 
             printf("%s: ggml ctx size c_ffn_norm = %6.2f MB\n", __func__, ctx_size/(1024.0*1024.0));
-            // ctx_size += n_layer * (n_embd * ggml_type_size(GGML_TYPE_F32)); // c_a
+            // ctx_size += n_layer * (n_embd * ggml_type_sizef(GGML_TYPE_F32)); // c_a
 
-            ctx_size += n_layer * (n_hddn * n_embd * ggml_type_size(wtype)); // c_feed_forward_w1
-            ctx_size += n_layer * (n_hddn * n_embd * ggml_type_size(wtype)); // c_feed_forward_w2
-            ctx_size += n_layer * (n_embd * n_hddn * ggml_type_size(wtype)); // c_feed_forward_w3_trans
+            ctx_size += n_layer * (n_hddn * n_embd * ggml_type_sizef(wtype)); // c_feed_forward_w1
+            ctx_size += n_layer * (n_hddn * n_embd * ggml_type_sizef(wtype)); // c_feed_forward_w2
+            ctx_size += n_layer * (n_embd * n_hddn * ggml_type_sizef(wtype)); // c_feed_forward_w3_trans
         }
         printf("%s: ggml ctx size w/o final_norm = %6.2f MB\n", __func__, ctx_size/(1024.0*1024.0));
 
-        ctx_size += n_embd * ggml_type_size(GGML_TYPE_F32); // final_norm
+        ctx_size += n_embd * ggml_type_sizef(GGML_TYPE_F32); // final_norm
 
-        ctx_size += n_embd * n_vocab * ggml_type_size(wtype); // lmh_g
-        // ctx_size += n_vocab * ggml_type_size(GGML_TYPE_F32); // lmh_b
+        ctx_size += n_embd * n_vocab * ggml_type_sizef(wtype); // lmh_g
+        // ctx_size += n_vocab * ggml_type_sizef(GGML_TYPE_F32); // lmh_b
 
         printf("%s: ggml ctx size w/o memory = %6.2f MB\n", __func__, ctx_size/(1024.0*1024.0));
 
-        ctx_size += n_ctx * n_layer * n_embd * ggml_type_size(GGML_TYPE_F32); // memory_k
-        ctx_size += n_ctx * n_layer * n_embd * ggml_type_size(GGML_TYPE_F32); // memory_v
+        ctx_size += n_ctx * n_layer * n_embd * ggml_type_sizef(GGML_TYPE_F32); // memory_k
+        ctx_size += n_ctx * n_layer * n_embd * ggml_type_sizef(GGML_TYPE_F32); // memory_v
 
         ctx_size += (3 + 9 * n_layer) * 256; // object overhead - 3 for wte, final_norm, lmh_g, 9 for each llama layer
         printf("%s: ggml ctx size w/ memory = %6.2f MB\n", __func__, ctx_size/(1024.0*1024.0));
@@ -219,7 +233,7 @@ bool llama_model_load(const std::string & fname, llama_model & model, gpt_vocab 
 
         model.layers.resize(n_layer);
 
-        model.wte    = ggml_new_tensor_2d(ctx, wtype,         n_embd, n_vocab);
+        model.wte    = ggml_new_tensor_2d(ctx, GGML_TYPE_F16, n_embd, n_vocab);
 
         model.final_norm = ggml_new_tensor_1d(ctx, GGML_TYPE_F32, n_embd);
         // model.ln_f_b = ggml_new_tensor_1d(ctx, GGML_TYPE_F32, n_embd);
@@ -250,9 +264,9 @@ bool llama_model_load(const std::string & fname, llama_model & model, gpt_vocab 
 
             layer.c_ffn_norm              = ggml_new_tensor_1d(ctx, GGML_TYPE_F32, n_embd);
 
-            layer.c_feed_forward_w1       = ggml_new_tensor_2d(ctx, wtype,         n_hddn,   n_embd);
+            layer.c_feed_forward_w1       = ggml_new_tensor_2d(ctx, wtype,         n_embd,   n_hddn);
             layer.c_feed_forward_w2_trans = ggml_new_tensor_2d(ctx, wtype,         n_hddn,   n_embd);
-            layer.c_feed_forward_w3       = ggml_new_tensor_2d(ctx, wtype,         n_hddn,   n_embd);
+            layer.c_feed_forward_w3       = ggml_new_tensor_2d(ctx, wtype,         n_embd,   n_hddn);
 
             // map by name
             model.tensors["layers." + std::to_string(i) + ".attention_norm.weight"] = layer.attention_norm;
@@ -336,11 +350,29 @@ bool llama_model_load(const std::string & fname, llama_model & model, gpt_vocab 
                 return false;
             }
 
-            const size_t bpe = tensor->type == GGML_TYPE_I8 ? 1 : (ftype == 0) ? sizeof(float) : sizeof(ggml_fp16_t);
+            if (0) {
+                static const char * ftype_str[] = { "f32", "f16", "q4_0", "q4_1", };
+                printf("%24s - [%5d, %5d], type = %6s, %6.2f MB\n, %9zu bytes\n",
+                    name.data(), ne[0], ne[1], ftype_str[ftype], ggml_nbytes(tensor)/1024.0/1024.0, ggml_nbytes(tensor));
+            }
+        
+            size_t bpe = 0;
 
-            if (nelements*bpe != ggml_nbytes(tensor)) {
+            switch (ftype) {
+                case 0: bpe = ggml_type_size(GGML_TYPE_F32); break;
+                case 1: bpe = ggml_type_size(GGML_TYPE_F16); break;
+                case 2: bpe = ggml_type_size(GGML_TYPE_Q4_0); assert(ne[0] % 64 == 0); break;
+                case 3: bpe = ggml_type_size(GGML_TYPE_Q4_1); assert(ne[0] % 64 == 0); break;
+                default: {
+                    fprintf(stderr, "%s: unknown ftype %d in model file\n", __func__, ftype);
+                    return false;
+                }
+            };
+
+            if (nelements*bpe/ggml_blck_size(tensor->type) != ggml_nbytes(tensor)) {
                 fprintf(stderr, "%s: tensor '%s' has wrong size in model file: got %zu, expected %zu\n",
                         __func__, name.data(), ggml_nbytes(tensor), nelements*bpe);
+                fprintf(stderr, "  nelements = %d, bpe = %zu, ftype = %d", nelements, bpe, ftype);
                 return false;
             }
 
@@ -439,12 +471,9 @@ bool llama_eval(
 
         // self-attention
         {
-            struct ggml_tensor * Qcur = ggml_mul_mat(
-                ctx0, ggml_transpose(ctx0, model.layers[il].c_attn_q_proj_w), cur);
-            struct ggml_tensor * Kcur = ggml_mul_mat(
-                ctx0, ggml_transpose(ctx0, model.layers[il].c_attn_k_proj_w), cur);
-            struct ggml_tensor * Vcur = ggml_mul_mat(
-                ctx0, ggml_transpose(ctx0, model.layers[il].c_attn_v_proj_w), cur);
+            struct ggml_tensor * Qcur = ggml_mul_mat(ctx0, model.layers[il].c_attn_q_proj_w, cur);
+            struct ggml_tensor * Kcur = ggml_mul_mat(ctx0, model.layers[il].c_attn_k_proj_w, cur);
+            struct ggml_tensor * Vcur = ggml_mul_mat(ctx0, model.layers[il].c_attn_v_proj_w, cur);
 
             // store key and value to memory
             if (N >= 1) {
@@ -511,9 +540,7 @@ bool llama_eval(
                     ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, n_embd, N));
 
             // projection (no bias)
-            cur = ggml_mul_mat(ctx0,
-                    ggml_transpose(ctx0, model.layers[il].c_attn_proj_w),
-                    cur);
+            cur = ggml_mul_mat(ctx0, model.layers[il].c_attn_proj_w, cur);
         }
 
         // self-attention + Input
@@ -532,13 +559,9 @@ bool llama_eval(
         // feed-forward network
         {
             // note here we pass inpL (residual added) instead of cur
-            struct ggml_tensor * ff1_out = ggml_mul_mat(ctx0,
-                    ggml_transpose(ctx0, model.layers[il].c_feed_forward_w1),
-                    cur);
+            struct ggml_tensor * ff1_out = ggml_mul_mat(ctx0, model.layers[il].c_feed_forward_w1, cur);
 
-            struct ggml_tensor * ff3_out = ggml_mul_mat(ctx0,
-                    ggml_transpose(ctx0, model.layers[il].c_feed_forward_w3),
-                    cur);
+            struct ggml_tensor * ff3_out = ggml_mul_mat(ctx0, model.layers[il].c_feed_forward_w3, cur);
 
             // SiLU activation
             ff1_out = ggml_silu(ctx0, ff1_out);
@@ -548,9 +571,7 @@ bool llama_eval(
 
             // projection
             // cur = matmil(proj_w, cur)
-            cur = ggml_mul_mat(ctx0,
-                    model.layers[il].c_feed_forward_w2_trans,
-                    cur);
+            cur = ggml_mul_mat(ctx0, model.layers[il].c_feed_forward_w2_trans, cur);
         }
 
         // input for next layer
@@ -679,13 +700,13 @@ int main(int argc, char ** argv) {
                 printf("Failed to predict\n");
                 return 1;
             }
-            printf("%d logits: ", iiii++);
-            for (int i = 0; i < 5; i++) {
-                printf("%.3f ", logits[i]);
-                if (i == 10) {
-                    break;
-                }
-            }
+            // printf("%d logits: ", iiii++);
+            // for (int i = 0; i < 5; i++) {
+            //     printf("%.3f ", logits[i]);
+            //     if (i == 10) {
+            //         break;
+            //     }
+            // }
             // printf("\n");
             t_predict_us += ggml_time_us() - t_start_us;
         }
@@ -717,7 +738,7 @@ int main(int argc, char ** argv) {
                         id = i;
                     }
                 }
-                printf("max: %.3f, id: %d \n", max_value, id);
+                // printf("max: %.3f, id: %d \n", max_value, id);
                 // id = gpt_sample_top_k_top_p(vocab, logits.data() + (logits.size() - n_vocab), top_k, top_p, temp, rng);
 
                 t_sample_us += ggml_time_us() - t_start_sample_us;

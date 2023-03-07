@@ -1906,7 +1906,7 @@ static const char * GGML_OP_LABEL[GGML_OP_COUNT] = {
     "FLASH_FF",
 };
 
-static_assert(GGML_OP_COUNT == 33, "GGML_OP_COUNT != 33");
+static_assert(GGML_OP_COUNT == 35, "GGML_OP_COUNT should be 35");
 
 static const char * GGML_OP_SYMBOL[GGML_OP_COUNT] = {
     "none",
@@ -1950,7 +1950,7 @@ static const char * GGML_OP_SYMBOL[GGML_OP_COUNT] = {
     "flash_ff(x)",
 };
 
-static_assert(GGML_OP_COUNT == 33, "GGML_OP_COUNT != 33");
+static_assert(GGML_OP_COUNT == 35, "GGML_OP_COUNT != 35");
 
 //
 // ggml object
@@ -5161,6 +5161,8 @@ static void ggml_compute_forward_silu(
             {
                 ggml_compute_forward_silu_f32(params, src0, dst);
             } break;
+        case GGML_TYPE_Q4_0:
+        case GGML_TYPE_Q4_1:
         case GGML_TYPE_I8:
         case GGML_TYPE_I16:
         case GGML_TYPE_I32:
@@ -5325,6 +5327,8 @@ static void ggml_compute_forward_rms_norm(
             {
                 ggml_compute_forward_rms_norm_f32(params, src0, dst);
             } break;
+        case GGML_TYPE_Q4_0:
+        case GGML_TYPE_Q4_1:
         case GGML_TYPE_I8:
         case GGML_TYPE_I16:
         case GGML_TYPE_I32:
