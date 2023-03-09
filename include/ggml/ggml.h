@@ -592,7 +592,8 @@ struct ggml_tensor * ggml_rope(
         struct ggml_tensor  * a,
         int                   n_past,
         int                   n_dims,
-        int                   mode);
+        int                   mode,
+        int                   is_llama);
 
 // padding = 1
 // TODO: we don't support extra parameters for now

@@ -17,6 +17,7 @@
 # and vocabulary.
 #
 
+import os
 import sys
 import struct
 import json
@@ -79,15 +80,12 @@ if len(sys.argv) > 2:
         sys.exit(1)
     fname_out = sys.argv[1] + "llama-f32.bin" + ftype_str[ftype] + ".bin"
 
-model = torch.load(dir_model + 'consolidated.00.pth') # "/no_layers.pth")
-#print (model)
-
-list_vars = model#.state_dict()
 #print (list_vars)
 
 fout = open(fname_out, "wb")
 
-fout.write(struct.pack("i", 0x67676d6c)) # magic: ggml in hex
+fout.write(struct.pack("i", 0x596f7572)) # magic: Your in hex
+fout.write(struct.pack("i", 0x47505473)) # magic: GPTs in hex
 fout.write(struct.pack("i", hparams["vocab_size"]))
 fout.write(struct.pack("i", hparams["n_positions"]))
 fout.write(struct.pack("i", hparams["n_embd"]))
@@ -112,66 +110,75 @@ fout.write(struct.pack("i", ftype))
 #     fout.write(struct.pack("i", len(text)))
 #     fout.write(text)
 
-for name in list_vars.keys():
-    if 'rope.freqs' in name:
-        continue # skip rope freqs
-    # if 'layers' in name:
-    #     if name.split('.')[1] != '0':
-    #         continue
-    data = list_vars[name].squeeze().numpy()
-    print("Processing variable: " + name + " with shape: ", data.shape)
+# list all paths in dir_model that have "consolidated" in the name and end with ".pth"
+all_files = [f for f in os.listdir(dir_model)
+             if os.path.isfile(os.path.join(dir_model, f)) and
+             f.startswith("consolidated") and f.endswith(".pth")]
+for f in all_files:
+    model = torch.load(dir_model + "/" + f, map_location=torch.device('cpu'))
 
-    # we don't need these
-    if name.endswith("attn.masked_bias") or name.endswith(".attn.bias"):
-        print("  Skipping variable: " + name)
-        continue
+    list_vars = model#.state_dict()
 
-    n_dims = len(data.shape)
+    for name in list_vars.keys():
+        if 'rope.freqs' in name:
+            continue # skip rope freqs
+        # if 'layers' in name:
+        #     if name.split('.')[1] != '0':
+        #         continue
+        data = list_vars[name].squeeze().numpy()
+        print("Processing variable: " + name + " with shape: ", data.shape)
 
-    # ftype == 0 -> float32, ftype == 1 -> float16
-    ftype_cur = 0
-    if ftype != 0:
-        if name[-7:] == ".weight" and n_dims == 2:
-            print("  Converting to float16")
-            data = data.astype(np.float16)
-            ftype_cur = 1
+        # we don't need these
+        if name.endswith("attn.masked_bias") or name.endswith(".attn.bias"):
+            print("  Skipping variable: " + name)
+            continue
+
+        n_dims = len(data.shape)
+
+        # ftype == 0 -> float32, ftype == 1 -> float16
+        ftype_cur = 0
+        if ftype != 0:
+            if name[-7:] == ".weight" and n_dims == 2:
+                print("  Converting to float16")
+                data = data.astype(np.float16)
+                ftype_cur = 1
+            else:
+                print("  Converting to float32")
+                data = data.astype(np.float32)
+                ftype_cur = 0
         else:
-            print("  Converting to float32")
-            data = data.astype(np.float32)
-            ftype_cur = 0
-    else:
-        if data.dtype != np.float32:
-            print("  Converting to float32")
-            data = data.astype(np.float32)
-            ftype_cur = 0
+            if data.dtype != np.float32:
+                print("  Converting to float32")
+                data = data.astype(np.float32)
+                ftype_cur = 0
 
-    # for efficiency - transpose these matrices: --- no longer transping is efficient with GGML.
-    #  "layers.*.feed_forward.w1.weight
-    #  "layers.*.feed_forward.w3.weight
-    #  "layers.*.attention.wq.weight
-    #  "layers.*.attention.wk.weight"
-    #  "layers.*.attention.wv.weight"
-    #  "layers.*.attention.wo.weight"
-    # if name.endswith(".feed_forward.w1.weight") or \
-    #    name.endswith(".feed_forward.w3.weight") or \
-    #    name.endswith(".attention.wo.weight") or \
-    #    name.endswith(".attention.wq.weight") or \
-    #    name.endswith(".attention.wk.weight") or \
-    #    name.endswith(".attention.wv.weight"):
-    #     print("  Transposing")
-    #     data = data.transpose()
+        # for efficiency - transpose these matrices: --- no longer transping is efficient with GGML.
+        #  "layers.*.feed_forward.w1.weight
+        #  "layers.*.feed_forward.w3.weight
+        #  "layers.*.attention.wq.weight
+        #  "layers.*.attention.wk.weight"
+        #  "layers.*.attention.wv.weight"
+        #  "layers.*.attention.wo.weight"
+        # if name.endswith(".feed_forward.w1.weight") or \
+        #    name.endswith(".feed_forward.w3.weight") or \
+        #    name.endswith(".attention.wo.weight") or \
+        #    name.endswith(".attention.wq.weight") or \
+        #    name.endswith(".attention.wk.weight") or \
+        #    name.endswith(".attention.wv.weight"):
+        #     print("  Transposing")
+        #     data = data.transpose()
 
-    # header
-    str = name.encode('utf-8')
-    fout.write(struct.pack("iii", n_dims, len(str), ftype_cur))
-    for i in range(n_dims):
-        fout.write(struct.pack("i", data.shape[n_dims - 1 - i]))
-    fout.write(str)
+        # header
+        name_str = name.encode('utf-8')
+        fout.write(struct.pack("iii", n_dims, len(name_str), ftype_cur))
+        for i in range(n_dims):
+            fout.write(struct.pack("i", data.shape[n_dims - 1 - i]))
+        fout.write(name_str)
 
-    # data
-    data.tofile(fout)
+        # data
+        data.tofile(fout)
 
-fout.close()
+    fout.close()
 
-print("Done. Output file: " + fname_out)
-print("")
+    print("Done. Output file: " + fname_out)
+    print("")

@@ -3883,7 +3883,8 @@ struct ggml_tensor * ggml_rope(
         struct ggml_tensor  * a,
         int                   n_past,
         int                   n_dims,
-        int                   mode) {
+        int                   mode,
+        int                   is_llama) {
     GGML_ASSERT(n_past >= 0);
     bool is_node = false;
 
@@ -3900,6 +3901,7 @@ struct ggml_tensor * ggml_rope(
     ((int32_t *) b->data)[0] = n_past;
     ((int32_t *) b->data)[1] = n_dims;
     ((int32_t *) b->data)[2] = mode;
+    ((int32_t *) b->data)[3] = is_llama;
 
     result->op   = GGML_OP_ROPE;
     result->grad = is_node ? ggml_dup_tensor(ctx, result) : NULL;
@@ -4429,7 +4431,18 @@ static void ggml_compute_forward_mul_f32(
                 (float *) ((char *) dst->data  + i*( dst->nb[1])),
                 (float *) ((char *) src0->data + i*(src0->nb[1])),
                 (float *) ((char *) src1->data + i*(src1->nb[1])));
+        // // print the first 3 and last 3 elements of the result vector
+        // printf("ggml_compute_forward_mul_f32: dst = [" );
+        // for (int j = 0; j < 3; j++) {
+        //     printf("%f, ", ((float *) ((char *) dst->data  + i*( dst->nb[1])))[j]);
+        // }
+        // printf("..., ");
+        // for (int j = nc-3; j < nc; j++) {
+        //     printf("%f, ", ((float *) ((char *) dst->data  + i*( dst->nb[1])))[j]);
+        // }
+        // printf("]\n");
     }
+    // printf("\n\n");
 }
 
 static void ggml_compute_forward_mul(
@@ -5289,7 +5302,7 @@ static void ggml_compute_forward_rms_norm_f32(
     const size_t nb2 = dst->nb[2];
     const size_t nb3 = dst->nb[3];
 
-    const ggml_float eps = 1e-5f; // TODO: make this a parameter
+    const ggml_float eps = 1e-6f; // TODO: make this a parameter
 
     // TODO: optimize
     for (int i03 = 0; i03 < ne03; i03++) {
@@ -5311,8 +5324,10 @@ static void ggml_compute_forward_rms_norm_f32(
                 }
 
                 const float scale = 1.0 / sqrt(mean_sq + eps);
+                // printf("\n  rsqrt: %f , ith: %d, ne00: %d \n", scale, ith, ne00);
 
                 ggml_vec_scale_f32(ne00, y, scale);
+                // printf("\n  ith: %d, y_scale: %.6f %.6f %.6f ... %.6f %.6f %.6f \n", ith, y[0], y[1], y[2], y[ne00-3], y[ne00-2], y[ne00-1]);
             }
         }
     }
@@ -7023,8 +7038,9 @@ static void ggml_compute_forward_rope_f32(
     const int n_past = ((int32_t *) src1->data)[0];
     const int n_dims = ((int32_t *) src1->data)[1];
     const int mode   = ((int32_t *) src1->data)[2];
+    const int is_llama = ((int32_t *) src1->data)[3];
 
-    //const int ne0 = src0->ne[0];
+    // const int ne0 = src0->ne[0];
     const int ne1 = src0->ne[1];
     const int ne2 = src0->ne[2];
     const int ne3 = src0->ne[3];
@@ -7034,8 +7050,9 @@ static void ggml_compute_forward_rope_f32(
     const int nb2 = src0->nb[2];
     const int nb3 = src0->nb[3];
 
-    //printf("ne0: %d, ne1: %d, ne2: %d, ne3: %d\n", ne0, ne1, ne2, ne3);
-    //printf("n_past = %d, ne2 = %d\n", n_past, ne2);
+    // printf("\n    ne0: %d, ne1: %d, ne2: %d, ne3: %d\n", ne0, ne1, ne2, ne3);
+    // printf("\n    n_past = %d, ndims = %d, mode = %d\n", n_past, n_dims, mode);
+    // printf("\n    nb0: %d, nb1: %d, nb2: %d, nb3: %d\n", nb0, nb1, nb2, nb3);
 
     assert(nb0 == sizeof(float));
 
@@ -7043,8 +7060,22 @@ static void ggml_compute_forward_rope_f32(
     for (int i3 = 0; i3 < ne3; i3++) {
         for (int i2 = (mode == 0 ? 0 : n_past); i2 < ne2; i2++) {
             const int p = (mode == 0 ? n_past + i2 : i2);
+            // // print the first 5 and last 5 elements of src
+            // float * src_data  = (float *)((char *) src0->data + i3*nb3 + i2*nb2);
+            // printf("  SRC:  p: %d, i2: %d, i3: %d, src: %f, %f, %f, %f, %f, %f, %f, %f, %f, %f\n",
+            //         p, i2, i3,
+            //         src_data[0], src_data[1], src_data[2], src_data[3], src_data[4], // first 5
+            //         src_data[n_dims-5], src_data[n_dims-4], src_data[n_dims-3], src_data[n_dims-2], src_data[n_dims-1]); // last 5
             for (int i1 = 0; i1 < ne1; i1++) {
-                for (int i0 = 0; i0 < n_dims; i0 += 2) {
+                int upper_bound;
+                if (is_llama == 1) {
+                    // printf("  LLaMa detected");
+                    upper_bound = n_dims/2;
+                } else {
+                    // printf("  LLaMa not detected");
+                    upper_bound = n_dims;
+                }
+                for (int i0 = 0; i0 < upper_bound; i0 += 2) {
                     const double theta = pow(10000.0, ((double)-i0)/n_dims);
 
                     const double cos_theta = cos(p*theta);
@@ -7056,10 +7087,22 @@ static void ggml_compute_forward_rope_f32(
                     double x0 = src[0];
                     double x1 = src[1];
 
+                    // // print for the first 3 elements of src
+                    // if (i0 <= 6 && i1 == 0 && i2 == ne2 - 1 && i3 == 0) {
+                    //     printf("  SRC:  p: %d, i2: %d, i3: %d, i1: %d, i0: %d, x0: %f, x1: %f, cos_theta: %f, sin_theta %f\n",
+                    //             p, i2, i3, i1, i0, x0, x1, cos_theta, sin_theta);
+                    // }
+
                     dst_data[0] = x0*cos_theta - x1*sin_theta;
                     dst_data[1] = x0*sin_theta + x1*cos_theta;
                 }
             }
+            // // print the first 5 and last 5 elements of dst
+            // float * dst_data  = (float *)((char *)  dst->data + i3*nb3 + i2*nb2);
+            // printf("  DST:  p: %d, i2: %d, i3: %d, dst: %f, %f, %f, %f, %f, %f, %f, %f, %f, %f\n",
+            //         p, i2, i3,
+            //         dst_data[0], dst_data[1], dst_data[2], dst_data[3], dst_data[4], // first 5
+            //         dst_data[n_dims-5], dst_data[n_dims-4], dst_data[n_dims-3], dst_data[n_dims-2], dst_data[n_dims-1]); // last 5
         }
     }
 }
@@ -7072,7 +7115,7 @@ static void ggml_compute_forward_rope_f16(
     assert(params->ith == 0);
     assert(src1->type == GGML_TYPE_I32);
     assert(ggml_nelements(src1) == 3);
-
+    assert(false); // not implemented for llama
     if (params->type == GGML_TASK_INIT || params->type == GGML_TASK_FINALIZE) {
         return;
     }
@@ -7132,6 +7175,7 @@ static void ggml_compute_forward_rope(
             } break;
         case GGML_TYPE_F32:
             {
+                // printf("ggml_compute_forward_rope_f32\n");
                 ggml_compute_forward_rope_f32(params, src0, src1, dst);
             } break;
         case GGML_TYPE_Q4_0:

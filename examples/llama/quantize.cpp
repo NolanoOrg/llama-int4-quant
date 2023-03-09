@@ -62,7 +62,14 @@ bool llama_model_quantize(const std::string & fname_inp, const std::string & fna
     {
         uint32_t magic;
         finp.read((char *) &magic, sizeof(magic));
-        if (magic != 0x67676d6c) {
+        if (magic != 0x596f7572) { // Your in hex
+            fprintf(stderr, "%s: invalid model file '%s' (bad magic)\n", __func__, fname_inp.c_str());
+            return false;
+        }
+        fout.write((char *) &magic, sizeof(magic));
+
+        finp.read((char *) &magic, sizeof(magic));
+        if (magic != 0x47505473) {// GPTs in hex
             fprintf(stderr, "%s: invalid model file '%s' (bad magic)\n", __func__, fname_inp.c_str());
             return false;
         }

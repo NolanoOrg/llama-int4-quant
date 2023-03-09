@@ -19,12 +19,14 @@ bool gpt_params_parse(int argc, char ** argv, gpt_params & params) {
             params.top_k = std::stoi(argv[++i]);
         } else if (arg == "--top_p") {
             params.top_p = std::stof(argv[++i]);
-        } else if (arg == "--temp") {
+        } else if (arg == "--temp" || arg == "--temperature") {
             params.temp = std::stof(argv[++i]);
         } else if (arg == "-b" || arg == "--batch_size") {
             params.n_batch = std::stoi(argv[++i]);
-        } else if (arg == "-m" || arg == "--model") {
+        } else if (arg == "-m" || arg == "--model" || arg == "--model_path") {
             params.model = argv[++i];
+        } else if (arg == "-v" || arg == "--vocab" || arg == "--vocab_path") {
+            params.vocab_path = argv[++i];
         } else if (arg == "-h" || arg == "--help") {
             gpt_print_usage(argc, argv, params);
             exit(0);
@@ -250,13 +252,12 @@ bool gpt_vocab_init(const std::string & fname, gpt_vocab & vocab) {
 }
 
 gpt_vocab::id gpt_sample_top_k_top_p(
-        const gpt_vocab & vocab,
+        const int n_logits,
         const float * logits,
         int    top_k,
         double top_p,
         double temp,
         std::mt19937 & rng) {
-    int n_logits = vocab.id_to_token.size();
 
     std::vector<std::pair<double, gpt_vocab::id>> logits_id;
     logits_id.reserve(n_logits);
@@ -327,6 +328,17 @@ gpt_vocab::id gpt_sample_top_k_top_p(
     int idx = dist(rng);
 
     return logits_id[idx].second;
+}
+
+gpt_vocab::id gpt_sample_top_k_top_p(
+        const gpt_vocab & vocab,
+        const float * logits,
+        int    top_k,
+        double top_p,
+        double temp,
+        std::mt19937 & rng) {
+    int n_logits = vocab.id_to_token.size();
+    return gpt_sample_top_k_top_p(n_logits, logits, top_k, top_p, temp, rng);
 }
 
 size_t ggml_quantize_q4_0(float * src, void * dst, int n, int k, int qk, int64_t * hist) {

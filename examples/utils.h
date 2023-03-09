@@ -7,6 +7,7 @@
 #include <vector>
 #include <random>
 #include <thread>
+#include <codecvt>
 
 //
 // CLI argument parsing
@@ -14,7 +15,7 @@
 
 struct gpt_params {
     int32_t seed      = -1; // RNG seed
-    int32_t n_threads = std::min(4, (int32_t) std::thread::hardware_concurrency());
+    int32_t n_threads = std::min(8, (int32_t) std::thread::hardware_concurrency());
     int32_t n_predict = 200; // new tokens to predict
 
     // sampling parameters
@@ -22,9 +23,10 @@ struct gpt_params {
     float   top_p = 0.9f;
     float   temp  = 1.0f;
 
-    int32_t n_batch = 8; // batch size for prompt processing
+    int32_t n_batch = 16; // batch size for prompt processing
 
     std::string model = "models/gpt-2-117M/ggml-model.bin"; // model path
+    std::string vocab_path;
     std::string prompt;
 };
 
@@ -41,6 +43,14 @@ std::string gpt_random_prompt(std::mt19937 & rng);
 struct gpt_vocab {
     using id    = int32_t;
     using token = std::string;
+
+    std::map<token, id> token_to_id;
+    std::map<id, token> id_to_token;
+};
+
+struct llama_vocab {
+    using id    = int32_t;
+    using token = std::wstring;
 
     std::map<token, id> token_to_id;
     std::map<id, token> id_to_token;

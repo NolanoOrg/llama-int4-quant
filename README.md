@@ -1,5 +1,14 @@
 # ggml
 
+## Usage for LLaMa
+1. Let the LLaMa model weights be in `../llama/save/7B`. Create a config.json file inside it with following keys `{"vocab_size": 32000, "n_positions": 2048, "n_embd": 4096, "n_hddn": 11008, "n_head": 32, "n_layer": 32, "rotary_dim": 64}`, modify as per your model.
+2. Convert using to ggml format `cd examples/llama && python3 convert-h5-to-ggml.py ../../../llama/save/7B/ 1` -- 1 denotes fp16, 0 denotes fp32
+3. `mkdir build` if not already present
+4. `cd build && cmake .. && make llama-quantize && make llama`
+5. Quantize the model `./bin/llama-quantize ../../llama/save/7B/llama--f32.binf16.bin ../models/llama7B-0-quant4.bin 2`
+6. Run the model `./bin/llama -m ../models/llama7B-0-quant4.bin -v ../models/llama_vocab.txt -p "This is an example" -t 8 -n [NO_OF_TOKENS]`
+
+##
 Tensor library for machine learning
 
 ***Note that this project is under development and not ready for production use. \
