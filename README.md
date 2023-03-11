@@ -4,14 +4,15 @@ This is built on `gq` branch of [ggml](https://github.com/ggerganov/ggml) C++ li
 
 ## Usage for LLaMa inference
 
-0. Clone the repo `git clone https://github.com/NolanoOrg/llama-int4-mac`
-1. Keep the LLaMa model weights in `../llama/save/7B`. Create a config.json file inside it with following keys `{"vocab_size": 32000, "n_positions": 2048, "n_embd": 4096, "n_hddn": 11008, "n_head": 32, "n_layer": 32, "rotary_dim": 64}`, modify as per your model.
-2. Convert using to ggml format `cd examples/llama && python3 convert-h5-to-ggml.py ../../../llama/save/7B/ 1` -- 1 denotes fp16, 0 denotes fp32.
-3. `mkdir build` if not already present.
-4. `cd build && cmake .. && make llama-quantize && make llama`.
-5. Quantize the model `./bin/llama-quantize ../../llama/save/7B/llama-f32.binf16.bin ../models/llama7B-0-quant4.bin 2`.
-6. Switch to python app directory `cd ../app` and edit the prompt in `tok_prompt.py`.
-7. Run the model `python3 tok_prompt.py && ./bin/llama --model_path ../models/llama7B-0-quant4.bin --vocab ../vocab/llama_vocab_clean.txt -n [NO_OF_TOKENS_TO_GENERATE]`.
+0. Clone the repo `git clone https://github.com/NolanoOrg/llama-int4-mac` and `cd llama-int4-mac`
+1. Keep the LLaMa model weights in `../llama/save/7B` relative to inside the current folder.
+2. Create a `config.json` file inside `../llama/save/7B` relative to current folder with following keys `{"vocab_size": 32000, "n_positions": 2048, "n_embd": 4096, "n_hddn": 11008, "n_head": 32, "n_layer": 32, "rotary_dim": 64}`, modify as per your model.
+3. Convert LLaMa to ggml format `cd examples/llama && python3 convert-h5-to-ggml.py ../../../llama/save/7B/ 1` -- 1 denotes fp16, 0 denotes fp32.
+4. `mkdir build` if not already present.
+5. `cd build && cmake .. && make llama-quantize && make llama`.
+6. Quantize the model `./bin/llama-quantize ../../llama/save/7B/llama-f32.binf16.bin ../models/llama7B-0-quant4.bin 2`.
+7. Switch to python app directory `cd ../app` and edit the prompt in `tok_prompt.py`.
+8. Run the model `python3 tok_prompt.py && ./bin/llama --model_path ../models/llama7B-0-quant4.bin --vocab ../vocab/llama_vocab_clean.txt -n [NO_OF_TOKENS_TO_GENERATE]`.
 
 ## Changes to the original codebase
 
