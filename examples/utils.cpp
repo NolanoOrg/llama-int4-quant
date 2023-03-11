@@ -41,21 +41,22 @@ bool gpt_params_parse(int argc, char ** argv, gpt_params & params) {
 }
 
 void gpt_print_usage(int argc, char ** argv, const gpt_params & params) {
-    fprintf(stderr, "usage: %s [options]\n", argv[0]);
+    fprintf(stderr, "usage: python3 tok_prompt.py | %s [options]\n", argv[0]);
     fprintf(stderr, "\n");
     fprintf(stderr, "options:\n");
-    fprintf(stderr, "  -h, --help            show this help message and exit\n");
-    fprintf(stderr, "  -s SEED, --seed SEED  RNG seed (default: -1)\n");
-    fprintf(stderr, "  -t N, --threads N     number of threads to use during computation (default: %d)\n", params.n_threads);
-    fprintf(stderr, "  -p PROMPT, --prompt PROMPT\n");
-    fprintf(stderr, "                        prompt to start generation with (default: random)\n");
-    fprintf(stderr, "  -n N, --n_predict N   number of tokens to predict (default: %d)\n", params.n_predict);
-    fprintf(stderr, "  --top_k N             top-k sampling (default: %d)\n", params.top_k);
-    fprintf(stderr, "  --top_p N             top-p sampling (default: %.1f)\n", params.top_p);
-    fprintf(stderr, "  --temp N              temperature (default: %.1f)\n", params.temp);
-    fprintf(stderr, "  -b N, --batch_size N  batch size for prompt processing (default: %d)\n", params.n_batch);
-    fprintf(stderr, "  -m FNAME, --model FNAME\n");
-    fprintf(stderr, "                        model path (default: %s)\n", params.model.c_str());
+    fprintf(stderr, "  -h, --help             show this help message and exit\n");
+    fprintf(stderr, "  -s SEED, --seed SEED   RNG seed (default: -1)\n");
+    fprintf(stderr, "  -t N, --threads N      number of threads to use during computation (default: %d)\n", params.n_threads);
+    // fprintf(stderr, "  -p PROMPT, --prompt   PROMPT\n");
+    fprintf(stderr, "                         prompt to start generation with (default: random)\n");
+    fprintf(stderr, "  -n N, --n_predict N    number of tokens to predict (default: %d)\n", params.n_predict);
+    fprintf(stderr, "  --top_k N              top-k sampling (default: %d)\n", params.top_k);
+    fprintf(stderr, "  --top_p N              top-p sampling (default: %.1f)\n", params.top_p);
+    fprintf(stderr, "  --temp --temperature N temperature (default: %.1f)\n", params.temp);
+    fprintf(stderr, "  -b N, --batch_size N   batch size for prompt processing (default: %d)\n", params.n_batch);
+    fprintf(stderr, "  -m Path/to/llama/7B, --model Path/to/llama/7B, --model_path Path/to/llama/7B\n");
+    fprintf(stderr, "  -v Path/to/llama/tokenizer.model, --vocab Path/to/llama/tokenizer.model, --model_path Path/to/llama/tokenizer.model\n");
+    fprintf(stderr, "                         model path (default: %s)\n", params.model.c_str());
     fprintf(stderr, "\n");
 }
 

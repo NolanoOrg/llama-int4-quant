@@ -841,11 +841,11 @@ int main(int argc, char ** argv) {
     printf("%s: number of tokens in prompt = %zu\n", __func__, embd_inp.size());
     printf("\n");
     // print first 5 elements of (void *) model.wte->data
-    printf("model.wte->data: ");
-    for (int i = 0; i < 5; i++) {
-        printf("%d ", ((int *) model.wte->data)[i]);
-    }
-    printf("\n");
+    // printf("model.wte->data: ");
+    // for (int i = 0; i < 5; i++) {
+    //    printf("%d ", ((int *) model.wte->data)[i]);
+    //}
+    printf("\n------------------ Starting Generation -----------------\n");
 
     std::vector<gpt_vocab::id> embd;
 
