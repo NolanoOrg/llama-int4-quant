@@ -1,6 +1,6 @@
 # LLaMa-int4 inference (proof of concept, not for production use)
 
-This is built on a hard `gq` branch of [ggml](https://github.com/ggerganov/ggml) C++ library. Commit history was lost and is not fully available.
+This is built on a hard `gq` branch of [ggml](https://github.com/ggerganov/ggml) C++ library. Commit history was lost and is not fully available. May not work on systems other than Macbook/iMac.
 
 ## Usage for LLaMa inference
 
