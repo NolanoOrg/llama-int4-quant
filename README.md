@@ -10,7 +10,7 @@ This is built on a hard `gq` branch of [ggml](https://github.com/ggerganov/ggml)
 3. Convert LLaMa to ggml format `cd examples/llama && python3 convert-h5-to-ggml.py ../../../llama/save/7B/ 1` -- 1 denotes fp16, 0 denotes fp32.
 4. `cd ../.. && mkdir build` if not already present.
 5. `cd build && cmake .. && make llama-quantize && make llama`.
-6. Quantize the model `./bin/llama-quantize ../../llama/save/7B/llama-f32.binf16.bin ../models/llama7B-0-quant4.bin 2`.
+6. Quantize the model `mkdir ../models/ && ./bin/llama-quantize ../../llama/save/7B/llama-f32.binf16.bin ../models/llama7B-0-quant4.bin 2`.
 7. Switch to python app directory `cd ../app` and edit the prompt in `tok_prompt.py`.
 8. Run the model `python3 tok_prompt.py && ./bin/llama --model_path ../models/llama7B-0-quant4.bin --vocab ../vocab/llama_vocab_clean.txt -n [NO_OF_TOKENS_TO_GENERATE]`.
 
