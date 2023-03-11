@@ -1,6 +1,13 @@
 # LLaMa-int4 inference (proof of concept, not for production use)
 
-This is built on a hard `gq` branch of [ggml](https://github.com/ggerganov/ggml) C++ library. Commit history was lost and is not fully available. May not work on systems other than Macbook/iMac.
+This is built on a hard fork of `gq` branch of [ggml](https://github.com/ggerganov/ggml) C++ library. Commit history was lost and is not fully available. This code may not work on systems other than Macbook/iMac.
+
+## Dependencies
+Pytorch: https://pytorch.org/get-started/locally/
+Transformers: https://github.com/huggingface/transformers/#installation
+Sentencepiece: https://github.com/google/sentencepiece#python-module
+
+You might also need cmake, which could be installed either via [brew](https://formulae.brew.sh/formula/cmake) or from [source](https://cmake.org/)
 
 ## Usage for LLaMa inference
 
@@ -25,4 +32,7 @@ I also made changes to examples/utils.h and examples/utils.cpp to add the LLaMa 
 # Credits:
 
 This codebase is based on the ggml library.
+
+# License
+MIT
 
